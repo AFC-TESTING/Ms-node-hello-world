@@ -1,0 +1,42 @@
+name: Deploy WebApp via OIDC
+
+on:
+  push:
+    branches:
+      - main
+
+# CRITICAL: This is required for GitHub to issue the OIDC token
+permissions:
+  id-token: write # Allows generation of the JWT OIDC token
+  contents: read  # Allows checkout of the code
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    environment: Production # Recommended for deploying to Prod, enabling security rules
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    # === STEP 1: AZURE OIDC LOGIN (Secretless Authentication) ===
+    - name: Azure Login (OIDC)
+      uses: azure/login@v2
+      with:
+        client-id: ${{ secrets.AZURE_CLIENT_ID }}
+        tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+        subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+    # === STEP 2: BUILD ARTIFACT (Replace with your actual build steps) ===
+    - name: Build with dotnet
+      run: |
+        dotnet restore
+        dotnet publish -c Release -o './myapp' 
+
+    # === STEP 3: DEPLOY TO AZURE WEB APP ===
+    - name: Deploy to Azure WebApp
+      uses: azure/webapps-deploy@v2
+      with:
+        app-name: 'my-oidc-secure-webapp' # Your App Service Name
+        package: './myapp' # The folder containing the deployable artifact
+        # Note: No 'publish-profile' or 'creds' input is needed here!
