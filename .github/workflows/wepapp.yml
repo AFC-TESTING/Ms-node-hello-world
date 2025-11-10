@@ -22,37 +22,44 @@ jobs:
           # Enable OIDC authentication
           enable-AzPSSession: true 
           
-      - name: Run Azure CLI commands
+      - name: Run Azure CLI deployment script
         uses: azure/cli@v2
         with:
           azcliversion: latest
           inlineScript: |
+            # --- START AZURE CLI SCRIPT ---
             echo "Successfully logged in to Azure."
-            # The 'az account show' command verifies the identity used for login.
             az account show --output table
 
-            # --- Sample Deployment Script ---
-            RESOURCE_GROUP_NAME="My-WebApp-RG" 
-            LOCATION="eastus"
+            # Define the target Resource Group and location
+            RESOURCE_GROUP_NAME="AFCTESTING" 
+            LOCATION="eastus" # Ensure this matches the RG's actual location
 
-            # 1. Create the Resource Group if it doesn't exist
-            echo "Ensuring Resource Group $RESOURCE_GROUP_NAME exists..."
-            az group create --name $RESOURCE_GROUP_NAME --location $LOCATION --output none
+            # 🛑 IMPORTANT: The 'az group create' command is REMOVED.
+            # This workflow will FAIL if the 'AFCTESTING' RG does not already exist, 
+            # enforcing the security boundary defined by the Role Assignment.
+
+            # 1. Verify the Resource Group exists and is accessible
+            echo "Verifying access to Resource Group: $RESOURCE_GROUP_NAME"
+            az group show --name $RESOURCE_GROUP_NAME
 
             # 2. Deploy a simple Azure Web App (Example)
-            echo "Deploying a simple Azure Web App..."
+            echo "Deploying a simple Azure Web App into $RESOURCE_GROUP_NAME..."
             APP_SERVICE_PLAN_NAME="my-gh-plan-${{ github.run_id }}"
             WEB_APP_NAME="gh-oidc-app-${{ github.run_id }}"
 
+            # Deploy App Service Plan into the specified RG
             az appservice plan create \
               --name $APP_SERVICE_PLAN_NAME \
               --resource-group $RESOURCE_GROUP_NAME \
               --location $LOCATION \
               --sku B1 # Basic tier
 
+            # Deploy Web App into the specified RG
             az webapp create \
               --name $WEB_APP_NAME \
               --resource-group $RESOURCE_GROUP_NAME \
               --plan $APP_SERVICE_PLAN_NAME
 
             echo "Deployment complete. Web App URL: https://${WEB_APP_NAME}.azurewebsites.net"
+            # --- END AZURE CLI SCRIPT ---
